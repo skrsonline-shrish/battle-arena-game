@@ -1,0 +1,25 @@
+# Battle Arena Game - Development
+
+This Docker setup runs both server and client for local development.
+
+## Build & Run
+
+```bash
+docker-compose up --build
+```
+
+## Access
+
+- **Game:** http://localhost:3000
+- **Server:** http://localhost:5000
+
+## Stop
+
+```bash
+docker-compose down
+```
+
+## Services
+
+- **web** - React client (port 3000)
+- **api** - Node.js server (port 5000)

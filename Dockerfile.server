@@ -1,0 +1,15 @@
+# Battle Arena Game Server Dockerfile
+
+FROM node:18-alpine
+
+WORKDIR /app/server
+
+COPY server/package*.json ./
+
+RUN npm install
+
+COPY server/ .
+
+EXPOSE 5000
+
+CMD ["npm", "start"]

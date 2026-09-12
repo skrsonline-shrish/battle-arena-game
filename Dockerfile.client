@@ -1,0 +1,25 @@
+# Battle Arena Game Client Dockerfile
+
+FROM node:18-alpine AS builder
+
+WORKDIR /app/client
+
+COPY client/package*.json ./
+
+RUN npm install
+
+COPY client/ .
+
+RUN npm run build
+
+FROM node:18-alpine
+
+WORKDIR /app
+
+RUN npm install -g serve
+
+COPY --from=builder /app/client/build ./build
+
+EXPOSE 3000
+
+CMD ["serve", "-s", "build", "-l", "3000"]
