@@ -20,7 +20,8 @@ function App() {
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
-      reconnectionAttempts: 5
+      reconnectionAttempts: 5,
+      transports: ['websocket', 'polling']
     });
 
     newSocket.on('connect', () => {
@@ -62,8 +63,7 @@ function App() {
       setLeaderboard(data);
     });
 
-    newSocket.on('matchEnded', (data) => {
-      console.log('Match ended:', data);
+    newSocket.on('matchEnded', () => {
       setGameState('gameOver');
     });
 
@@ -74,7 +74,7 @@ function App() {
 
   const handlePlayerJoin = () => {
     if (!playerName.trim()) {
-      alert('Please enter a name');
+      alert('Please enter a player name');
       return;
     }
 
@@ -108,12 +108,6 @@ function App() {
     handleFindMatch();
   };
 
-  const handleBackToMenu = () => {
-    setPlayerData(null);
-    setMatchData(null);
-    setGameState('menu');
-  };
-
   const handleViewLeaderboard = () => {
     if (socket) {
       socket.emit('requestLeaderboard');
@@ -121,15 +115,37 @@ function App() {
     }
   };
 
+  const handleBackToMenu = () => {
+    setPlayerData(null);
+    setMatchData(null);
+    setGameState('menu');
+  };
+
   if (gameState === 'playing' && matchData) {
     return (
-      <div className="app">
+      <div className="app app-playing">
         <div className="game-panel">
-          <h1>Match #{matchData.matchId}</h1>
-          <p>Team: {matchData.team}</p>
-          <p>Teammates: {matchData.teammates ? matchData.teammates.map(t => t.name).join(', ') : 'Loading...'}</p>
-          <p>Opponents: {matchData.opponents ? matchData.opponents.map(o => o.name).join(', ') : 'Loading...'}</p>
-          <p>Game scene is ready to be connected to Phaser.</p>
+          <div className="arena-header">
+            <h1>Match #{matchData.matchId}</h1>
+            <span className={`team-badge team-${matchData.team}`}>Team {matchData.team}</span>
+          </div>
+
+          <div className="match-summary">
+            <div>
+              <h3>Teammates</h3>
+              <p>{matchData.teammates && matchData.teammates.length > 0
+                ? matchData.teammates.map((t) => t.name).join(', ')
+                : 'Waiting...'}</p>
+            </div>
+            <div>
+              <h3>Opponents</h3>
+              <p>{matchData.opponents && matchData.opponents.length > 0
+                ? matchData.opponents.map((o) => o.name).join(', ')
+                : 'Waiting...'}</p>
+            </div>
+          </div>
+
+          <p className="status-text">🎮 Six-player 3v3 arena is active. Ready to connect Phaser game scene.</p>
           <button className="btn-primary" onClick={handleBackToMenu}>Back to menu</button>
         </div>
       </div>
@@ -138,16 +154,25 @@ function App() {
 
   if (gameState === 'matchmaking') {
     return (
-      <div className="app">
+      <div className="app app-matchmaking">
         <div className="matchmaking-panel">
           <h1>Finding Match...</h1>
-          <p>{playersInQueue} / 6 players</p>
+          <p className="queue-counter">{playersInQueue} / 6 players</p>
+
           <div className="progress-bar">
             <div className="progress-fill" style={{ width: `${(playersInQueue / 6) * 100}%` }} />
           </div>
-          <p>Need {Math.max(0, 6 - playersInQueue)} more player(s) to start.</p>
-          <button className="btn-primary" onClick={handleFindMatch}>Refresh Queue</button>
-          <button className="btn-secondary" onClick={handleBackToMenu}>Back</button>
+
+          <p className="queue-message">
+            {playersInQueue < 6
+              ? `Need ${Math.max(0, 6 - playersInQueue)} more player${6 - playersInQueue !== 1 ? 's' : ''} to start.`
+              : '✅ Match starting!'}
+          </p>
+
+          <div className="button-row">
+            <button className="btn-primary" onClick={handleFindMatch}>Refresh Queue</button>
+            <button className="btn-secondary" onClick={handleBackToMenu}>Back</button>
+          </div>
         </div>
       </div>
     );
@@ -156,13 +181,15 @@ function App() {
   if (gameState === 'leaderboard') {
     return (
       <div className="app">
-        <div className="leaderboard-panel">
-          <h1>Leaderboard</h1>
+        <div className="panel leaderboard-panel">
+          <h1>🏆 Leaderboard</h1>
           {leaderboard.length === 0 ? <p>No scores yet.</p> : (
             <ol>
               {leaderboard.map((player, index) => (
                 <li key={`${player.name}-${index}`}>
-                  {player.name} - {player.score} pts ({player.kills} kills)
+                  <span>{player.name}</span>
+                  <strong>{player.score} pts</strong>
+                  <small>{player.kills} K</small>
                 </li>
               ))}
             </ol>
@@ -176,8 +203,8 @@ function App() {
   if (gameState === 'gameOver') {
     return (
       <div className="app">
-        <div className="game-over-panel">
-          <h1>Match Finished</h1>
+        <div className="panel game-over-panel">
+          <h1>Match Finished!</h1>
           <button className="btn-primary" onClick={handlePlayAgain}>Play again</button>
           <button className="btn-secondary" onClick={handleViewLeaderboard}>Leaderboard</button>
           <button className="btn-tertiary" onClick={handleBackToMenu}>Menu</button>
@@ -187,16 +214,21 @@ function App() {
   }
 
   return (
-    <div className="app">
-      <div className="menu-panel">
-        <h1>⚔️ Battle Arena</h1>
-        <p>3v3 Multiplayer Arena</p>
+    <div className="app app-menu">
+      <div className="panel menu-panel">
+        <div className="title-wrap">
+          <p className="eyebrow">MULTIPLAYER ARENA</p>
+          <h1>⚔️ Battle Arena</h1>
+        </div>
+
+        <p className="subtitle">3v3 online battle arena. All 6 players must join before the match starts.</p>
 
         {error && <div className="error-banner">{error}</div>}
 
         <div className="input-group">
-          <label>Name</label>
+          <label htmlFor="playerName">Player Name</label>
           <input
+            id="playerName"
             type="text"
             value={playerName}
             onChange={(e) => setPlayerName(e.target.value)}
@@ -206,18 +238,20 @@ function App() {
         </div>
 
         <div className="input-group">
-          <label>Character</label>
-          <select value={character} onChange={(e) => setCharacter(e.target.value)}>
-            <option value="Blaze">Blaze</option>
-            <option value="Frost">Frost</option>
-            <option value="Nova">Nova</option>
-            <option value="Titan">Titan</option>
-            <option value="Shadow">Shadow</option>
+          <label htmlFor="character">Character</label>
+          <select id="character" value={character} onChange={(e) => setCharacter(e.target.value)}>
+            <option value="Blaze">Blaze 🔥</option>
+            <option value="Frost">Frost ❄️</option>
+            <option value="Nova">Nova ⭐</option>
+            <option value="Titan">Titan 💪</option>
+            <option value="Shadow">Shadow 🌑</option>
           </select>
         </div>
 
-        <button className="btn-primary" onClick={handlePlayerJoin}>Join Match</button>
-        <button className="btn-secondary" onClick={handleViewLeaderboard}>Leaderboard</button>
+        <div className="button-row menu-buttons">
+          <button className="btn-primary" onClick={handlePlayerJoin}>Join Match</button>
+          <button className="btn-secondary" onClick={handleViewLeaderboard}>Leaderboard</button>
+        </div>
       </div>
     </div>
   );
